@@ -1,5 +1,9 @@
 <div class="text-left">
-<p>A 100% inspired by the fine work and services provided by <a href="https://arma3.swec.se/">https://arma3.swec.se/</a>.</p>
+<h3>Acknowledgement</h3>
+<p><small>A 100% inspired by the fine work and services provided by <a href="https://arma3.swec.se/">https://arma3.swec.se/</a>.</small></p>
+<<h3>About</h3>
+<p>DCS Server Tracker (DCST) is a tool that allows you to keep track of <a href="https://www.digitalcombatsimulator.com/">DCS World</a> online servers. It tracks the servers, the number of players and which scenarios are played on them and tries to present all the information gathered in something that is easy to see at a glance.</p>
+<h3>Development</h3>
 <p>Made using the following tools:
   <ul>
     <li><a href="https://atom.io/">Atom Editor</a> and <a href="https://www.vim.org">VIM</a></li>
@@ -10,6 +14,7 @@
     <li><a href="https://www.mysql.com/">MySQL</a> (I really didn't want to..)</li>
     <li><a href="https://aws.amazon.com/cloudfront/">AWS CloudFront</a> (Which as a pain to setup the first time)</li>
   </ul>
+<p>Questions? Bugs? Contribute? Run your own instance? <a href="https://github.com/GlowieXYZ/dcs_server_tracker/">Check this out at GitHub.</a></p>
 <p>TODO:
   <ul>
     <li>Go <i>Serverless</i> by have flat HTML/JS files in S3 to query API-Gateway/Lambda functions for similar functionality</li>
@@ -19,18 +24,18 @@
 </p>
 <p><b>Wanted:</b> I am looking for a Dutch/EU clan/community to fly with in the evenings. The play-style I am looking for is in between casual and serious. Require SRS? 👍Yes! Player controlled tower and AWACS (through LotATC or something)? No thanks! 😘. You can find me on The Shooting Range Discord server.</p>
 <p>&nbsp;</p>
-<p><h2>Changelog</h2></p>
-<h3>2019-09-15: Lets try again..</h3>
+<p><h3>Changelog</h3></p>
+<h4>2019-09-15: Lets try again..</h4>
 <ul>
   <li>Replaced DynamoDB and memcached in favour of redis.</li>
   <li>Dumped all the MySQL related queries into a function. Makes it SLOW AF. But should cause less trouble in the long run.</li>
 </ul>
-<h3>2019-03-16: I needed a global CDN for this?</h3>
+<h4>2019-03-16: I needed a global CDN for this?</h4>
 <ul>
   <li>Show country-flags of where the servers are hosted.</li>
   <li>Cached IP->Country results into memcached</li>
 </ul>
-<h3>2019-03-15: The great "What is sleep?" rewrite!</h3>
+<h4>2019-03-15: The great "What is sleep?" rewrite!</h4>
 <ul>
   <li><b>Rewrote and relaunched the application</b></li>
   <li>Moved server-data to MySQL from DynamoDB</li>

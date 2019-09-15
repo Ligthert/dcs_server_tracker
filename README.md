@@ -1,5 +1,7 @@
-# dcs_server_tracker
+# DCS Server Tracker
 Frontend for historical data of DCS World servers.
+
+Currently this is being hosted at: https://dcs.glowie.xyz/
 
 ## Requirements
 * MySQL (any recent version)
