@@ -1,0 +1,81 @@
+<div class="text-center">
+  <table width="80%" align="center" border="1">
+    <tr><td align="center"><b>Servers and Players</b></td></tr>
+    <tr><td align="center"><div id="meta-data"></div></td></tr>
+    <tr><td align="center" valign="top"><div id="country-data" style="height: 1000px"></div></td></tr>
+    <tr><td align="center" valign="top"><div id="country-data-players" style="height: 1000px"></div></td></tr>
+    <tr><td align="center" valign="top"><div id="country-data-all" style="height: 1500px"></div></td></tr>
+  </table>
+</div>
+
+<script type="text/javascript">
+  // Load the Visualization API and the corechart package.
+  google.charts.load('current', {'packages':['corechart']});
+  // Set a callback to run when the Google Visualization API is loaded.
+  google.charts.setOnLoadCallback(drawChart);
+  function drawChart() {
+    var data = new google.visualization.arrayToDataTable([
+      ['Time', 'Players','Servers'],
+      {% for meta in metadata %}[ '{{meta.timestamp}}', {{meta.players}}, {{meta.servers}} ] {{ "," if not loop.last }}{% endfor %}
+    ]);
+    // Set chart options
+    var options = {width:800, height:400};
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.LineChart(document.getElementById('meta-data'));
+    chart.draw(data, options);
+  }
+</script>
+
+<script type="text/javascript">
+  google.charts.load('current', {packages: ['corechart', 'bar']});
+  google.charts.setOnLoadCallback(drawBasic);
+  function drawBasic() {
+    var data = google.visualization.arrayToDataTable([
+      ['Country', 'Servers',],
+      {% for country in countrydata %}[ '{{country.name}}', {{country.servers}} ] {{ "," if not loop.last }}{% endfor %}
+    ]);
+    var options = {
+      title: 'Active Servers per Country',
+      hAxis: { title: 'Servers per Country', minValue: 0 },
+      vAxis: { title: 'Countries' }
+    };
+    var chart = new google.visualization.BarChart(document.getElementById('country-data'));
+    chart.draw(data, options);
+  }
+</script>
+
+<script type="text/javascript">
+  google.charts.load('current', {packages: ['corechart', 'bar']});
+  google.charts.setOnLoadCallback(drawBasic);
+  function drawBasic() {
+    var data = google.visualization.arrayToDataTable([
+      ['Country', 'Servers',],
+      {% for country in allPlayers %}[ '{{country.name}}', {{country.players}} ] {{ "," if not loop.last }}{% endfor %}
+    ]);
+    var options = {
+      title: 'Players per Active Servers per Country',
+      hAxis: { minValue: 0 },
+      vAxis: { title: 'Countries' }
+    };
+    var chart = new google.visualization.BarChart(document.getElementById('country-data-players'));
+    chart.draw(data, options);
+  }
+</script>
+
+<script type="text/javascript">
+  google.charts.load('current', {packages: ['corechart', 'bar']});
+  google.charts.setOnLoadCallback(drawBasic);
+  function drawBasic() {
+    var data = google.visualization.arrayToDataTable([
+      ['Country', 'Servers',],
+      {% for country in countrydataall %}[ '{{country.name}}', {{country.servers}} ] {{ "," if not loop.last }}{% endfor %}
+    ]);
+    var options = {
+      title: 'Known Servers per Country',
+      hAxis: { title: 'Servers per Country', minValue: 0 },
+      vAxis: { title: 'Countries' }
+    };
+    var chart = new google.visualization.BarChart(document.getElementById('country-data-all'));
+    chart.draw(data, options);
+  }
+</script>

@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+
+import os
+import requests
+import json
+import time
+from datetime import datetime
+from pprint import pprint
+import redis
+import pickle
+import pymysql
+from pprint import pprint
+import geoip2.database
+
+def timestamp_pretty(timestamp):
+  return datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+timestamp = round(time.time())
+rconn = redis.Redis(host=os.environ["DCS_SERVER_TRACKER_REDIS_IP"],port=os.environ["DCS_SERVER_TRACKER_REDIS_PORT"],db=os.environ["DCS_SERVER_TRACKER_REDIS_DB"])
+geoip = geoip2.database.Reader(os.environ["DCS_SERVER_TRACKER_GEOIP2_FILE"])
+
+sql_insert_players = "INSERT INTO players (instance_id, timestamp, players) values (%s,%s,%s)"
+sql_insert_scenarios_log = "INSERT INTO scenarios_log (instance_id, timestamp, players, players_max, mission_name, mission_time, mission_time_formatted) values (%s,%s,%s,%s,%s,%s,%s)"
+
+sql_server_select = "SELECT * FROM servers WHERE instance_id=%s"
+sql_server_alldown = "UPDATE servers SET status='down'"
+sql_server_insert = "INSERT INTO servers (instance_id, timestamp, status, name, description, ip_address, port, password, players, players_max, mission_name, mission_time, mission_time_formatted,country_iso,country_name) values (%s,%s,'up',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+sql_server_update = "UPDATE servers SET timestamp=%s, status='up', password=%s, players=%s, players_max=%s, mission_name=%s, mission_time=%s, mission_time_formatted=%s WHERE instance_id=%s"
+# sql_server_ = "UPDATE servers SET WHERE instance_id=%s"
+
+auth_url = "https://www.digitalcombatsimulator.com/en/auth/"
+payload = {
+            'AUTH_FORM':'Y',
+            'TYPE':'AUTH',
+            'backurl':'/en/personal/server/?ajax=y',
+            'USER_LOGIN':os.environ["DCS_SERVER_TRACKER_ED_USERNAME"],
+            'USER_PASSWORD':os.environ["DCS_SERVER_TRACKER_ED_PASSWORD"],
+            'USER_REMEMBER':'Y'
+          }
+
+r = requests.post(auth_url, data=payload)
+
+server_info = json.loads(r.text)
+server_info['timestamp'] = timestamp
+
+# Now do the meta stuff
+rconn.lpush("dcst_meta_players_count", str(timestamp)+","+str(server_info['PLAYERS_COUNT']) )
+rconn.lpush("dcst_meta_servers_count", str(timestamp)+","+str(len(server_info['SERVERS'])) )
+rconn.lpush("dcst_meta_servers_max_count", str(timestamp)+","+str(server_info['SERVERS_MAX_COUNT']) )
+rconn.lpush("dcst_meta_servers_max_data", str(timestamp)+","+str(server_info['SERVERS_MAX_DATE']) )
+rconn.set("dcst_meta_servers_online", pickle.dumps(server_info))
+
+rconn.ltrim("dcst_meta_players_count",0,8928)
+rconn.ltrim("dcst_meta_servers_count",0,8928)
+rconn.ltrim("dcst_meta_servers_max_count",0,8928)
+rconn.ltrim("dcst_meta_servers_max_data",0,8928)
+
+# Connect to the MySQL Server using the data in the configfile
+db = pymysql.connect(host=os.environ["DCS_SERVER_TRACKER_MYSQL_SERVER"],
+  port=int(os.environ["DCS_SERVER_TRACKER_MYSQL_PORT"]),
+  user=os.environ["DCS_SERVER_TRACKER_MYSQL_USERNAME"],
+  password=os.environ["DCS_SERVER_TRACKER_MYSQL_PASSWORD"],
+  db=os.environ["DCS_SERVER_TRACKER_MYSQL_DATABASE"],
+  cursorclass=pymysql.cursors.DictCursor,
+  use_unicode=True,
+  charset="utf8")
+db.autocommit(True)
+cursor = db.cursor()
+
+for server in server_info['SERVERS']:
+  server['INSTANCE_ID'] = server['IP_ADDRESS']+":"+server['PORT']
+  server['MISSION_TIME_FORMATTED'] = str(server['MISSION_TIME_FORMATTED']).replace("<br>","&nbsp;")
+  cursor.execute(sql_insert_players, (server['INSTANCE_ID'],timestamp,server['PLAYERS']))
+  cursor.execute(sql_insert_scenarios_log, (server['INSTANCE_ID'],timestamp,server['PLAYERS'],server['PLAYERS_MAX'],str(server['MISSION_NAME']).encode("utf-8"),server['MISSION_TIME'],server['MISSION_TIME_FORMATTED']))
+
+# Server status
+cursor.execute(sql_server_alldown)
+
+for server in server_info['SERVERS']:
+  server['INSTANCE_ID'] = server['IP_ADDRESS']+":"+server['PORT']
+  cursor.execute(sql_server_select, (server['INSTANCE_ID']))
+  results = cursor.fetchall()
+  if len(results) == 0:
+    response = geoip.country(server['IP_ADDRESS'])
+    try:
+      server['country_iso'] = str(response.country.iso_code).lower()
+      server['country_name'] = str(response.country.names['en']).title()
+    except:
+      server['country_iso'] = "unknown"
+      server['country_name'] = "unknown"
+
+    cursor.execute(sql_server_insert, (server['INSTANCE_ID'], timestamp, str(server['NAME']).encode("utf-8"), str(server['DESCRIPTION']).encode("utf-8"), server['IP_ADDRESS'], server['PORT'], server['PASSWORD'], server['PLAYERS'], server['PLAYERS_MAX'], str(server['MISSION_NAME']).encode("utf-8"), str(server['MISSION_TIME']).encode("utf-8"), str(server['MISSION_TIME_FORMATTED']).encode("utf-8"),server['country_iso'],server['country_name']))
+  else:
+    cursor.execute(sql_server_update, (timestamp, server['PASSWORD'], server['PLAYERS'], server['PLAYERS_MAX'], str(server['MISSION_NAME']).encode("utf-8"), server['MISSION_TIME'], server['MISSION_TIME_FORMATTED'], server['INSTANCE_ID']))
+
+# Finally clean up data older than 7 days
+sql_cleanup_players = "DELETE FROM players WHERE timestamp<=%s"
+cursor.execute(sql_cleanup_players, (timestamp-604800))
+
+
+# Start the summary part:
+sql_select_scenario_events = "SELECT * FROM scenarios_log WHERE instance_id=%s ORDER BY timestamp ASC"
+sql_select_server = "SELECT * FROM servers WHERE instance_id=%s"
+
+sql_select_distinct_servers = "SELECT DISTINCT instance_id FROM scenarios_log"
+sql_delete_events = "DELETE FROM scenarios_log WHERE instance_id=%s AND timestamp<=%s"
+sql_insert_scenario = "INSERT INTO scenarios (instance_id, players, mission_name, mission_time, mission_time_formatted, start, end) values (%s,%s,%s,%s,%s,%s,%s)"
+
+sql_select_down_scenarios = "SELECT sl.* FROM servers s INNER JOIN scenarios_log sl ON s.INSTANCE_ID = sl.instance_id WHERE s.status='down'"
+
+
+cursor.execute(sql_select_distinct_servers)
+servers = cursor.fetchall()
+
+for server_log in servers:
+  cursor.execute(sql_select_server, (server_log['instance_id']))
+  server = cursor.fetchone()
+  try:
+    server['status'] = server['status']
+  except:
+    server['status'] = "down"
+  #print("Starting for server "+server_log['instance_id']+" ("+server['status']+")")
+
+  cursor.execute(sql_select_scenario_events, (server_log['instance_id']))
+  events = cursor.fetchall()
+
+  history = []
+  cycle = 0
+  scenario = {}
+  events_cycle = 0
+  for event in events:
+    events_cycle = events_cycle + 1
+    events_count = len(events)
+    if cycle == 0:
+      scenario = {}
+      scenario['scenario'] = event['mission_name']
+      scenario['start'] = event['timestamp']
+      scenario['mission_time'] = event['mission_time']
+      scenario['duration'] = event['mission_time_formatted']
+      scenario['players'] = event['players']
+
+    if event['mission_time'] >= scenario['mission_time']:
+      scenario['mission_time'] = event['mission_time']
+      scenario['duration'] = event['mission_time_formatted']
+
+    if event['players'] > scenario['players']:
+      scenario['players'] = event['players']
+
+    if event['mission_time'] < scenario['mission_time']:
+      scenario['end'] = event['timestamp']
+      if server['timestamp']!=event['timestamp']:
+        history.append(scenario)
+        #print("Appending "+scenario['scenario'])
+        #print("Deleting "+server_log['instance_id']+" with "+str(event['timestamp']))
+        cursor.execute(sql_delete_events,(server_log['instance_id'],event['timestamp']))
+      cycle = 1
+    elif server['timestamp']==event['timestamp'] and server['status'] == "down" and events_count == events_count:
+      scenario['end'] = event['timestamp']
+      history.append(scenario)
+      cursor.execute(sql_delete_events,(server_log['instance_id'],event['timestamp']))
+    else:
+      cycle = cycle + 1
+
+  for event in history:
+    cursor.execute(sql_insert_scenario,(server_log['instance_id'],event['players'],event['scenario'],event['mission_time'],event['duration'],event['start'],event['end']))
+
+
+### Clean out the scenarios_log
+sql_scenerios_log_cleaner = "DELETE FROM scenarios_log WHERE timestamp <=%s"
+old_logs = timestamp - 2678400
+cursor.execute(sql_scenerios_log_cleaner, (old_logs))

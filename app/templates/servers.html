@@ -1,0 +1,28 @@
+  <div class="text-center">
+    <table style="border: 1px solid black;" width="100%" align="center">
+      <tr>
+        <td align="right"><b>Currently Active Servers:</b></td><td align="left">{{server_count}}</td>
+        <td align="right"><b>Players:</b></td><td align="left">{{player_count}}</td>
+        <td>Show servers: <a href="?servers=online&column={{search_prep.column}}&order={{search_prep.order}}">{% if search_active.servers_online %}<b>{% endif %}Online{% if search_active.servers_online %}</b>{% endif %}</a> / <a href="?servers=offline&column={{search_prep.column}}&order={{search_prep.order}}">{% if search_active.servers_offline %}<b>{% endif %}Offline{% if search_active.servers_offline %}</b>{% endif %}</a> / <a href="?servers=both&column={{search_prep.column}}&order={{search_prep.order}}">{% if search_active.servers_both %}<b>{% endif %}Both{% if search_active.servers_both %}</b>{% endif %}</a></td>
+      </tr>
+    </table>
+  </div>
+  &nbsp;
+  <div class="text-center">
+    <table style="border: 1px solid black;" width="100%" align="center">
+      <tr>
+        <td></td>
+        <td><b>Server Name <a href="?servers={{search_prep.servers}}&column=servers&order=desc">&#9660;</a> <a href="?servers={{search_prep.servers}}&column=servers&order=asc">&#9650;</a></b></td>
+        <td><b>Scenario<a href="?servers={{search_prep.servers}}&column=scenario&order=desc">&#9660;</a><a href="?servers={{search_prep.servers}}&column=scenario&order=asc">&#9650;</a></b></td>
+        <td><a href="?servers={{search_prep.servers}}&column=players&order=desc">&#9660;</a><a href="?servers={{search_prep.servers}}&column=players&order=asc">&#9650;</a></td>
+      </tr>
+      {% for server in servers %}
+      <tr class="servers" style="background-color: #{{ loop.cycle('ffffff', 'f2f2f2')}}">
+        <td>{% if server.PASSWORD %}<span title="Server has a password">🔐</span>{% else %}<span title="Server is public">🌏</span>{% endif %}</td>
+        <td align="left"><img src="https://cdn.glowie.xyz/icons/flags/{{server.country_iso}}.gif" title="{{server.country_name}}" />&nbsp;<a href="/servers/{{server.INSTANCE_ID}}" title="{{server.DESCRIPTION}}">{{server.NAME}}</a></td>
+        <td align="left"><a href="/servers/{{server.INSTANCE_ID}}" title="{{server.DESCRIPTION}}">{{server.MISSION_NAME}}</a></td>
+        <td>{{server.PLAYERS}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>

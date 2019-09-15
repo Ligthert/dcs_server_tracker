@@ -1,0 +1,43 @@
+<div class="text-left">
+<p>A 100% inspired by the fine work and services provided by <a href="https://arma3.swec.se/">https://arma3.swec.se/</a>.</p>
+<p>Made using the following tools:
+  <ul>
+    <li><a href="https://atom.io/">Atom Editor</a> and <a href="https://www.vim.org">VIM</a></li>
+    <li><a href="https://git-scm.com/">Git</a></li>
+    <li><a href="https://www.python.org/">Python</a></li>
+    <li><a href="http://flask.pocoo.org/">Flask</a></li>
+    <li><a href="https://www.redis.io/">Redis</a> to cache what is in MySQL</li>
+    <li><a href="https://www.mysql.com/">MySQL</a> (I really didn't want to..)</li>
+    <li><a href="https://aws.amazon.com/cloudfront/">AWS CloudFront</a> (Which as a pain to setup the first time)</li>
+  </ul>
+<p>TODO:
+  <ul>
+    <li>Compile a list of scenarios played by a server</li>
+    <li>Optimize how player data are stored in the database</li>
+    <li>Go <i>Serverless</i> by have flat HTML/JS files in S3 to query API-Gateway/Lambda functions for similar functionality</li>
+    <li>Have a dedicated server detector running. (No idea how to do this...)</li>
+    <li>Make it possible to search servers</li>
+  </ul>
+</p>
+<p><b>Wanted:</b> Looking for a Dutch/EU clan/community to fly with on the Tuesday or Friday evenings. Looking for a play-style in between casual and serious. Require SRS? 👍Yes! Player controlled tower and AWACS (through LotATC or something)? No thanks! 😘. You can find me on The Shooting Range and Hoggit Discord server.</p>
+<p>&nbsp;</p>
+<p><h2>Changelog</h2></p>
+<h3>2019-09-15: Lets try again..</h3>
+<ul>
+  <li>Replaced DynamoDB and memcached in favour of redis.</li>
+  <li>Dumped all the MySQL related queries into a function. Makes it SLOW AF. But should cause less trouble in the long run.</li>
+</ul>
+<h3>2019-03-16: I needed a global CDN for this?</h3>
+<ul>
+  <li>Show country-flags of where the servers are hosted.</li>
+  <li>Cached IP->Country results into memcached</li>
+</ul>
+<h3>2019-03-15: The great "What is sleep?" rewrite!</h3>
+<ul>
+  <li><b>Rewrote and relaunched the application</b></li>
+  <li>Moved server-data to MySQL from DynamoDB</li>
+  <li>Moved session-data to MySQL for later processing</li>
+  <li>Moved player-data to MySQL for later processing</li>
+</ul>
+
+</div>
