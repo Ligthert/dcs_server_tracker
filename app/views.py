@@ -10,12 +10,16 @@ from operator import itemgetter
 import redis
 import pickle
 import pymysql
+import hashlib
 
 # import dstw
 # Global var, ugly. I know. :-(
 rconn = redis.Redis(host=os.environ["DCS_SERVER_TRACKER_REDIS_IP"],port=os.environ["DCS_SERVER_TRACKER_REDIS_PORT"],db=os.environ["DCS_SERVER_TRACKER_REDIS_DB"])
 
-def executeQuery(query,params=[],type="all"):
+def executeQuery(query,params=[],type="all",expiry=240):
+  queryHash = "query_"+hashlib.md5(str(query+str(params)).encode()).hexdigest()
+  if rconn.exists(queryHash) == 1:
+    return pickle.loads(rconn.get(queryHash))
   db = pymysql.connect(host=os.environ["DCS_SERVER_TRACKER_MYSQL_SERVER"],
     port=int(os.environ["DCS_SERVER_TRACKER_MYSQL_PORT"]),
     user=os.environ["DCS_SERVER_TRACKER_MYSQL_USERNAME"],
@@ -30,9 +34,13 @@ def executeQuery(query,params=[],type="all"):
   cursor.close()
   db.close()
   if type=="all":
-    return cursor.fetchall()
+    rconn.set(queryHash,pickle.dumps(cursor.fetchall()))
+    rconn.expire(queryHash,expiry)
+    return pickle.loads(rconn.get(queryHash))
   elif type=="one":
-    return cursor.fetchone()
+    rconn.set(queryHash,pickle.dumps(cursor.fetchone()))
+    rconn.expire(queryHash,expiry)
+    return pickle.loads(rconn.get(queryHash))
 
 
 sql_servers_online = "SELECT * FROM servers WHERE status='up'"
@@ -187,7 +195,7 @@ def page_stats():
     metadata.append(stat)
 
   # Metrics: Countries
-  servers = executeQuery(sql_stats_online)
+  servers = executeQuery(sql_stats_online,[],"all",1800)
 
   countries_list = {}
   for server in servers:
@@ -208,7 +216,7 @@ def page_stats():
 
 
   # Metrics: Players per Countries
-  servers = executeQuery(sql_stats_online)
+  servers = executeQuery(sql_stats_online,[],"all",1800)
 
   countries_list = {}
   for server in servers:
@@ -229,7 +237,7 @@ def page_stats():
 
 
   # Metrics: Countries of all servers
-  servers = executeQuery(sql_stats_all)
+  servers = executeQuery(sql_stats_all,[],"all",1800)
 
   countries_list = {}
   for server in servers:
