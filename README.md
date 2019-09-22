@@ -83,5 +83,9 @@ Point this to where your GeoLite2-Country.mmdb is stored
 This will make your life easier:
 * `$ export PYTHONIOENCODING=utf-8`
 
+## Running
+* Run the tracker-component every 5 minutes. This is due to EDs API refreshing only one every 5 minutes.
+* Set the web to run constantly (package it in systemd or something)
+
 ## Hints and Tips
 If you are lazy and need to test stuff, create a shell script that sets all these environmental variables.
