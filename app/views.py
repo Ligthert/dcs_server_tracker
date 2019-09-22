@@ -52,8 +52,8 @@ sql_server_history = "SELECT * FROM scenarios WHERE instance_id=%s ORDER BY star
 sql_server_players = "SELECT * FROM players WHERE INSTANCE_ID=%s ORDER BY TIMESTAMP ASC"
 sql_server_samehost = "SELECT * FROM servers WHERE IP_ADDRESS=%s AND PORT!=%s ORDER BY PORT"
 
-sql_server_update_country_iso = "UPDATE servers SET country_iso=%s WHERE INSTANCE_ID=%s"
-sql_server_update_country_name = "UPDATE servers SET country_name=%s WHERE INSTANCE_ID=%s"
+#sql_server_update_country_iso = "UPDATE servers SET country_iso=%s WHERE INSTANCE_ID=%s"
+#sql_server_update_country_name = "UPDATE servers SET country_name=%s WHERE INSTANCE_ID=%s"
 
 sql_stats_online = "SELECT * FROM servers WHERE status='up'"
 sql_stats_all = "SELECT * FROM servers"
