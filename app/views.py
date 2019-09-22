@@ -78,6 +78,8 @@ def page_servers():
     search_field = "NAME"
   elif search_prep['column'] == "scenario":
     search_field = "MISSION_NAME"
+  elif search_prep['column'] == "countries":
+    search_field = "country_iso"
   else:
     search_field = "PLAYERS"
 
