@@ -123,7 +123,7 @@ def page_servers():
   content = render_template("servers.html", server_count=len(edJSON['SERVERS']), player_count=edJSON['PLAYERS_COUNT'], servers=servers, search_prep=search_prep, search_active=search_active)
   active = {"servers":True}
   edJSON = fetchJSON()
-  return render_template("template.html", content=content, active=active, last_update=timestamp_pretty(edJSON['timestamp']))
+  return render_template("template.html", title="DCS Server Tracker", content=content, active=active, last_update=timestamp_pretty(edJSON['timestamp']))
 
 
 # Show data of a specific server
@@ -158,7 +158,7 @@ def page_server(instance_id):
   content = render_template("server.html", server=server, values=values, history=history)
   active = {"servers":True}
   edJSON = fetchJSON()
-  return render_template("template.html", content=content, active=active, last_update=timestamp_pretty(edJSON['timestamp']))
+  return render_template("template.html", title=server['NAME']+" - DCS Server Tracker", content=content, active=active, last_update=timestamp_pretty(edJSON['timestamp']))
 
 
 # The /stats-page with whatever stats
@@ -260,7 +260,7 @@ def page_stats():
   content = render_template("stats.html", metadata=metadata, countrydata=countrydata, allPlayers=allPlayers, countrydataall=countrydataall)
   active = {"stats":True}
   edJSON = fetchJSON()
-  return render_template("template.html", content=content, active=active, last_update=timestamp_pretty(edJSON['timestamp']))
+  return render_template("template.html", title="Stats - DCS Server Tracker", content=content, active=active, last_update=timestamp_pretty(edJSON['timestamp']))
 
 
 # The /about-page is just a formality at this point really
@@ -269,7 +269,7 @@ def page_about():
   content = render_template("about.html")
   active = {"about":True}
   edJSON = fetchJSON()
-  return render_template("template.html", content=content, active=active, last_update=timestamp_pretty(edJSON['timestamp']))
+  return render_template("template.html", title="About - DCS Server Tracker", content=content, active=active, last_update=timestamp_pretty(edJSON['timestamp']))
 
 
 ## Functions!
