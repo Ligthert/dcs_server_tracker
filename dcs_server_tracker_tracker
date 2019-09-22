@@ -6,14 +6,58 @@ import json
 import time
 from datetime import datetime
 from pprint import pprint
+from operator import itemgetter
 import redis
 import pickle
 import pymysql
 from pprint import pprint
 import geoip2.database
+import hashlib
 
 def timestamp_pretty(timestamp):
   return datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+def executeQuery(query,params=[],type="all",expiry=240):
+  queryHash = "query_"+hashlib.md5(str(query+str(params)).encode()).hexdigest()
+  if rconn.exists(queryHash) == 1:
+    return pickle.loads(rconn.get(queryHash))
+  db = pymysql.connect(host=os.environ["DCS_SERVER_TRACKER_MYSQL_SERVER"],
+    port=int(os.environ["DCS_SERVER_TRACKER_MYSQL_PORT"]),
+    user=os.environ["DCS_SERVER_TRACKER_MYSQL_USERNAME"],
+    password=os.environ["DCS_SERVER_TRACKER_MYSQL_PASSWORD"],
+    db=os.environ["DCS_SERVER_TRACKER_MYSQL_DATABASE"],
+    cursorclass=pymysql.cursors.DictCursor,
+    use_unicode=True,
+    charset="utf8")
+  db.autocommit(True)
+  cursor = db.cursor()
+  cursor.execute(query,params)
+  cursor.close()
+  db.close()
+  if type=="all":
+    rconn.set(queryHash,pickle.dumps(cursor.fetchall()))
+    rconn.expire(queryHash,expiry)
+    return pickle.loads(rconn.get(queryHash))
+  elif type=="one":
+    rconn.set(queryHash,pickle.dumps(cursor.fetchone()))
+    rconn.expire(queryHash,expiry)
+    return pickle.loads(rconn.get(queryHash))
+
+def fetchJSON():
+  return pickle.loads( rconn.get("dcst_meta_servers_online") )
+
+def sortListofDicts(myList,myColumn,reverse=False):
+  return sorted(myList, key=itemgetter(myColumn), reverse=reverse)
+
+def getCountryISO(instance_id):
+  server = executeQuery(sql_server_select, [instance_id],"one")
+  return server['country_iso']
+
+
+def getCountryName(instance_id):
+  server = executeQuery(sql_server_select, [instance_id],"one")
+  return server['country_name']
+
 
 timestamp = round(time.time())
 rconn = redis.Redis(host=os.environ["DCS_SERVER_TRACKER_REDIS_IP"],port=os.environ["DCS_SERVER_TRACKER_REDIS_PORT"],db=os.environ["DCS_SERVER_TRACKER_REDIS_DB"])
@@ -27,6 +71,9 @@ sql_server_alldown = "UPDATE servers SET status='down'"
 sql_server_insert = "INSERT INTO servers (instance_id, timestamp, status, name, description, ip_address, port, password, players, players_max, mission_name, mission_time, mission_time_formatted,country_iso,country_name) values (%s,%s,'up',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 sql_server_update = "UPDATE servers SET timestamp=%s, status='up', password=%s, players=%s, players_max=%s, mission_name=%s, mission_time=%s, mission_time_formatted=%s WHERE instance_id=%s"
 # sql_server_ = "UPDATE servers SET WHERE instance_id=%s"
+
+sql_stats_online = "SELECT * FROM servers WHERE status='up'"
+sql_stats_all = "SELECT * FROM servers"
 
 auth_url = "https://www.digitalcombatsimulator.com/en/auth/"
 payload = {
@@ -169,3 +216,106 @@ for server_log in servers:
 sql_scenerios_log_cleaner = "DELETE FROM scenarios_log WHERE timestamp <=%s"
 old_logs = timestamp - 2678400
 cursor.execute(sql_scenerios_log_cleaner, (old_logs))
+
+### Pregenerate stats
+
+# Metrics: Meta (Servers/Players)
+dcst_meta_players_count = rconn.lrange("dcst_meta_players_count",0,8928)
+dcst_meta_servers_max_data = rconn.lrange("dcst_meta_servers_max_data",0,8928)
+dcst_meta_servers_online = fetchJSON()
+dcst_meta_servers_count = rconn.lrange("dcst_meta_servers_count",0,8928)
+dcst_meta_servers_max_count = rconn.lrange("dcst_meta_servers_max_count",0,8928)
+
+if len(dcst_meta_servers_count) > 8928:
+  maxrange = 8928
+else:
+  maxrange = len(dcst_meta_servers_count)
+
+dcst_meta_players_count.reverse()
+dcst_meta_servers_count.reverse()
+
+metadata = []
+for position in range(0,maxrange-1):
+  stat = {}
+  stat['timestamp'] = timestamp_pretty(int(dcst_meta_players_count[position].decode().split(",")[0]))
+  try:
+    stat['players'] = dcst_meta_players_count[position].decode().split(",")[1]
+  except:
+    stats['players'] = 0
+  try:
+    stat['servers'] = dcst_meta_servers_count[position].decode().split(",")[1]
+  except:
+    stat['servers'] = 0
+  metadata.append(stat)
+
+rconn.set("dcst_stats_metadata", pickle.dumps(metadata))
+rconn.expire("dcst_stats_metadata",600)
+
+# Metrics: Countries
+servers = executeQuery(sql_stats_online,[],"all",1800)
+
+countries_list = {}
+for server in servers:
+  country = getCountryName(server['INSTANCE_ID'])
+  try:
+    countries_list[country] = countries_list[country] + 1
+  except:
+    countries_list[country] = 1
+
+countrydata = []
+for country in countries_list.keys():
+  tmp_val = {}
+  tmp_val['name'] = country
+  tmp_val['servers'] = countries_list[country]
+  countrydata.append(tmp_val)
+
+countrydata = sorted(countrydata, key=itemgetter('servers'), reverse=True)
+
+rconn.set("dcst_stats_countrydata", pickle.dumps(countrydata))
+rconn.expire("dcst_stats_countrydata",600)
+
+# Metrics: Players per Countries
+servers = executeQuery(sql_stats_online,[],"all",1800)
+
+countries_list = {}
+for server in servers:
+  country = getCountryName(server['INSTANCE_ID'])
+  try:
+    countries_list[country] = countries_list[country] + server['PLAYERS']
+  except:
+    countries_list[country] = server['PLAYERS']
+
+allPlayers = []
+for country in countries_list.keys():
+  tmp_val = {}
+  tmp_val['name'] = country
+  tmp_val['players'] = countries_list[country]
+  allPlayers.append(tmp_val)
+
+allPlayers = sorted(allPlayers, key=itemgetter('players'), reverse=True)
+
+rconn.set("dcst_stats_allPlayers", pickle.dumps(allPlayers))
+rconn.expire("dcst_stats_allPlayers",600)
+
+# Metrics: Countries of all servers
+servers = executeQuery(sql_stats_all,[],"all",1800)
+
+countries_list = {}
+for server in servers:
+  country = getCountryName(server['INSTANCE_ID'])
+  try:
+    countries_list[country] = countries_list[country] + 1
+  except:
+    countries_list[country] = 1
+
+countrydataall = []
+for country in countries_list.keys():
+  tmp_val = {}
+  tmp_val['name'] = country
+  tmp_val['servers'] = countries_list[country]
+  countrydataall.append(tmp_val)
+
+countrydataall = sorted(countrydataall, key=itemgetter('servers'), reverse=True)
+
+rconn.set("dcst_stats_countrydataall", pickle.dumps(countrydataall))
+rconn.expire("dcst_stats_countrydataall",600)

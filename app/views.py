@@ -167,97 +167,10 @@ def page_server(instance_id):
 @app.route("/stats/")
 def page_stats():
 
-  # Metrics: Meta (Servers/Players)
-  dcst_meta_players_count = rconn.lrange("dcst_meta_players_count",0,8928)
-  dcst_meta_servers_max_data = rconn.lrange("dcst_meta_servers_max_data",0,8928)
-  dcst_meta_servers_online = fetchJSON()
-  dcst_meta_servers_count = rconn.lrange("dcst_meta_servers_count",0,8928)
-  dcst_meta_servers_max_count = rconn.lrange("dcst_meta_servers_max_count",0,8928)
-
-  if len(dcst_meta_servers_count) > 8928:
-    maxrange = 8928
-  else:
-    maxrange = len(dcst_meta_servers_count)
-
-  dcst_meta_players_count.reverse()
-  dcst_meta_servers_count.reverse()
-
-  metadata = []
-  for position in range(0,maxrange-1):
-    stat = {}
-    stat['timestamp'] = timestamp_pretty(int(dcst_meta_players_count[position].decode().split(",")[0]))
-    try:
-      stat['players'] = dcst_meta_players_count[position].decode().split(",")[1]
-    except:
-      stats['players'] = 0
-    try:
-      stat['servers'] = dcst_meta_servers_count[position].decode().split(",")[1]
-    except:
-      stat['servers'] = 0
-    metadata.append(stat)
-
-  # Metrics: Countries
-  servers = executeQuery(sql_stats_online,[],"all",1800)
-
-  countries_list = {}
-  for server in servers:
-    country = getCountryName(server['INSTANCE_ID'])
-    try:
-      countries_list[country] = countries_list[country] + 1
-    except:
-      countries_list[country] = 1
-
-  countrydata = []
-  for country in countries_list.keys():
-    tmp_val = {}
-    tmp_val['name'] = country
-    tmp_val['servers'] = countries_list[country]
-    countrydata.append(tmp_val)
-
-  countrydata = sorted(countrydata, key=itemgetter('servers'), reverse=True)
-
-
-  # Metrics: Players per Countries
-  servers = executeQuery(sql_stats_online,[],"all",1800)
-
-  countries_list = {}
-  for server in servers:
-    country = getCountryName(server['INSTANCE_ID'])
-    try:
-      countries_list[country] = countries_list[country] + server['PLAYERS']
-    except:
-      countries_list[country] = server['PLAYERS']
-
-  allPlayers = []
-  for country in countries_list.keys():
-    tmp_val = {}
-    tmp_val['name'] = country
-    tmp_val['players'] = countries_list[country]
-    allPlayers.append(tmp_val)
-
-  allPlayers = sorted(allPlayers, key=itemgetter('players'), reverse=True)
-
-
-  # Metrics: Countries of all servers
-  servers = executeQuery(sql_stats_all,[],"all",1800)
-
-  countries_list = {}
-  for server in servers:
-    country = getCountryName(server['INSTANCE_ID'])
-    try:
-      countries_list[country] = countries_list[country] + 1
-    except:
-      countries_list[country] = 1
-
-  countrydataall = []
-  for country in countries_list.keys():
-    tmp_val = {}
-    tmp_val['name'] = country
-    tmp_val['servers'] = countries_list[country]
-    countrydataall.append(tmp_val)
-
-  countrydataall = sorted(countrydataall, key=itemgetter('servers'), reverse=True)
-
+  metadata = pickle.loads(rconn.get("dcst_stats_metadata"))
+  countrydata = pickle.loads(rconn.get("dcst_stats_countrydata"))
+  allPlayers = pickle.loads(rconn.get("dcst_stats_allPlayers"))
+  countrydataall = pickle.loads(rconn.get("dcst_stats_countrydataall"))
 
   content = render_template("stats.html", metadata=metadata, countrydata=countrydata, allPlayers=allPlayers, countrydataall=countrydataall)
   active = {"stats":True}
