@@ -128,8 +128,8 @@ for server in server_info['SERVERS']:
   cursor.execute(sql_server_select, (server['INSTANCE_ID']))
   results = cursor.fetchall()
   if len(results) == 0:
-    response = geoip.country(server['IP_ADDRESS'])
     try:
+      response = geoip.country(server['IP_ADDRESS'])
       server['country_iso'] = str(response.country.iso_code).lower()
       server['country_name'] = str(response.country.names['en']).title()
     except:
@@ -165,6 +165,7 @@ for server_log in servers:
   try:
     server['status'] = server['status']
   except:
+    print(server)
     server['status'] = "down"
   #print("Starting for server "+server_log['instance_id']+" ("+server['status']+")")
 
