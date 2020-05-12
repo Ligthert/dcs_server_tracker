@@ -1,5 +1,4 @@
 flask
-flask_cache
 redis
 pymysql
 geoip2
