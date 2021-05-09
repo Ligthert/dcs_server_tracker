@@ -3,6 +3,9 @@ Frontend for historical data of DCS World servers.
 
 Currently this is being hosted at: https://dcs.glowie.xyz/
 
+# This project is on hold (no surprise). A rewrite in Golang is planned.
+A new repo will be added soon.
+
 ## Requirements
 * MySQL (any recent version)
 * Redis (any recent version)
